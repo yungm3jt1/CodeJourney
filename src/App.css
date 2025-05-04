@@ -241,6 +241,9 @@ body {
 }
 
 .menu-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin-right: 10px;
   font-size: 1.2rem;
 }
@@ -283,7 +286,7 @@ body {
   background-color: #1e1e1e;
   border-radius: 6px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-  width: 90%;
+  width: 90%;   
   max-width: 800px;
   margin: 0 auto;
   overflow: hidden;

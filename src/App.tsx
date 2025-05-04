@@ -1,6 +1,7 @@
 // App.tsx
 import React, { useState, useEffect } from 'react';
 import './App.css';
+import {  Home, Bookmark, Wrench, Info, Mail } from 'lucide-react';
 import LoginModal from './loginModal';
 
 function App() {
@@ -150,11 +151,11 @@ function App() {
       {/* Mobile menu */}
       <div className={`mobile-menu ${isMenuOpen ? 'open' : ''}`}>
         <ul className="menu-items">
-          <li className="menu-item"><a href="#home"><span className="menu-icon">⌂</span> Home</a></li>
-          <li className="menu-item"><a href="#tutorials"><span className="menu-icon">📚</span> Tutorials</a></li>
-          <li className="menu-item"><a href="#resources"><span className="menu-icon">🔧</span> Resources</a></li>
-          <li className="menu-item"><a href="#about"><span className="menu-icon">ℹ️</span> About</a></li>
-          <li className="menu-item"><a href="#contact"><span className="menu-icon">✉️</span> Contact</a></li>
+          <li className="menu-item"><a href="/"><span className="menu-icon"><Home size={18} className="icon-menu"/></span> Home</a></li>
+          <li className="menu-item"><a href="#tutorials"><span className="menu-icon"><Bookmark size={18} className="icon-menu"/></span> Tutorials</a></li>
+          <li className="menu-item"><a href="#resources"><span className="menu-icon"><Wrench size={18} className="icon-menu"/></span> Resources</a></li>
+          <li className="menu-item"><a href="#about"><span className="menu-icon"><Info size={18} className="icon-menu"/></span> About</a></li>
+          <li className="menu-item"><a href="#contact"><span className="menu-icon"><Mail size={18} className="icon-menu"/></span> Contact</a></li>
         </ul>
       </div>
 
@@ -224,12 +225,12 @@ function App() {
             <div className="card-footer">
               <a href="#learn" className="learn-more">Explore tutorials</a>
             </div>
-          </div>
+          </div>  
           
           <div className="feature-card">
             <div className="feature-icon">
               <div className="icon-container">
-                <span className="code-icon">{ }</span>
+                <span className="code-icon">{"{ }"}</span>
               </div>
             </div>
             <h3>Build Projects</h3>

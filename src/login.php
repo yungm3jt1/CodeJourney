@@ -1,384 +1,215 @@
 <?php
+// Enable CORS for development
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Headers: Content-Type, Authorization");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
+header("Content-Type: application/json; charset=UTF-8");
 
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Headers: Content-Type');
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Content-Type: application/json');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+// Handle preflight requests
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     http_response_code(200);
     exit();
 }
 
+// Database configuration
+$db_host = "localhost";
+$db_name = "auth_system";
+$db_user = "root";
+$db_pass = ""; // Default password is empty for XAMPP/WAMP
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405); // Method Not Allowed
-    echo json_encode(['success' => false, 'message' => 'Dozwolone są tylko zapytania POST']);
-    exit();
-}
-
-
-$inputData = file_get_contents('php://input');
-$postData = json_decode($inputData, true);
-
-
-if (!$postData) {
-    http_response_code(400); // Bad Request
-    echo json_encode(['success' => false, 'message' => 'Nieprawidłowy format danych JSON']);
-    exit();
-}
-
-
-$dbPath = __DIR__ . '/database.sqlite';
-$isNewDB = !file_exists($dbPath);
-
+// Connect to database
 try {
-    $db = new PDO('sqlite:' . $dbPath);
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    
-
-    if ($isNewDB) {
-        createTables($db);
-        seedDatabase($db); // Dodaj przykładowe dane
-    }
-    
-} catch (PDOException $e) {
-    http_response_code(500); // Internal Server Error
-    echo json_encode(['success' => false, 'message' => 'Błąd bazy danych: ' . $e->getMessage()]);
+    $conn = new PDO("mysql:host=$db_host;dbname=$db_name", $db_user, $db_pass);
+    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch(PDOException $e) {
+    http_response_code(500);
+    echo json_encode([
+        "success" => false,
+        "message" => "Database connection failed: " . $e->getMessage()
+    ]);
     exit();
 }
 
+// Get request data
+$data = json_decode(file_get_contents("php://input"));
+$action = isset($data->action) ? $data->action : null;
 
-$action = isset($postData['action']) ? $postData['action'] : '';
-
-switch ($action) {
-    case 'login':
-        handleLogin($db, $postData);
-        break;
-    
-    case 'register':
-        handleRegistration($db, $postData);
-        break;
-        
-    case 'social_login':
-        handleSocialLogin($db, $postData);
-        break;
-        
-    case 'reset_password':
-        handlePasswordReset($db, $postData);
-        break;
-        
-    default:
-        http_response_code(400); // Bad Request
-        echo json_encode(['success' => false, 'message' => 'Nieznany typ akcji']);
-        exit();
-}
-
-/**
- * Funkcja tworząca tabele w bazie danych
- */
-function createTables($db) {
-    // Tabela użytkowników
-    $db->exec("CREATE TABLE users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        social_provider TEXT DEFAULT NULL,
-        social_provider_id TEXT DEFAULT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )");
-    
-    // Tabela resetów hasła
-    $db->exec("CREATE TABLE password_resets (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        token TEXT UNIQUE NOT NULL,
-        expires_at DATETIME NOT NULL,
-        used BOOLEAN DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users (id)
-    )");
-    
-    // Tabela sesji
-    $db->exec("CREATE TABLE sessions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        token TEXT UNIQUE NOT NULL,
-        expires_at DATETIME NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users (id)
-    )");
-}
-
-/**
- * Funkcja dodająca przykładowe dane do bazy
- */
-function seedDatabase($db) {
-    // Dodaj przykładowych użytkowników
-    $stmt = $db->prepare("INSERT INTO users (name, email, password) VALUES (?, ?, ?)");
-    
-    // Przykładowy użytkownik 1
-    $name = "Jan Kowalski";
-    $email = "jan@example.com";
-    $password = password_hash("haslo123", PASSWORD_DEFAULT);
-    $stmt->execute([$name, $email, $password]);
-    
-    // Przykładowy użytkownik 2
-    $name = "Anna Nowak";
-    $email = "anna@example.com";
-    $password = password_hash("haslo123", PASSWORD_DEFAULT);
-    $stmt->execute([$name, $email, $password]);
-}
-
-/**
- * Funkcja obsługująca logowanie użytkownika
- */
-function handleLogin($db, $data) {
-    // Sprawdzanie czy wymagane pola są obecne
-    if (!isset($data['email']) || !isset($data['password'])) {
+// Process based on action type
+if ($action === 'login') {
+    // Login process
+    if (!isset($data->email) || !isset($data->password) || empty($data->email) || empty($data->password)) {
         http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Brak wymaganych pól email lub hasło']);
-        exit();
-    }
-    
-    $email = trim($data['email']);
-    $password = $data['password'];
-    
-    // Podstawowa walidacja
-    if (empty($email) || empty($password)) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Email i hasło są wymagane']);
-        exit();
-    }
-    
-    // Przygotowanie i wykonanie zapytania
-    $stmt = $db->prepare("SELECT id, name, email, password FROM users WHERE email = ?");
-    $stmt->execute([$email]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$user) {
-        http_response_code(401); // Unauthorized
-        echo json_encode(['success' => false, 'message' => 'Nieprawidłowy email lub hasło']);
-        exit();
-    }
-    
-    // Weryfikacja hasła
-    if (!password_verify($password, $user['password'])) {
-        http_response_code(401); // Unauthorized
-        echo json_encode(['success' => false, 'message' => 'Nieprawidłowy email lub hasło']);
-        exit();
-    }
-    
-    // Generowanie tokenu sesji
-    $token = bin2hex(random_bytes(32));
-    $expiresAt = date('Y-m-d H:i:s', strtotime('+24 hours'));
-    
-    // Zapisywanie tokenu sesji
-    $stmt = $db->prepare("INSERT INTO sessions (user_id, token, expires_at) VALUES (?, ?, ?)");
-    $stmt->execute([$user['id'], $token, $expiresAt]);
-    
-    // Usuń hasło z danych użytkownika przed zwróceniem
-    unset($user['password']);
-    
-    // Zwróć dane użytkownika wraz z tokenem
-    echo json_encode([
-        'success' => true,
-        'message' => 'Logowanie udane',
-        'user' => $user,
-        'token' => $token
-    ]);
-}
-
-/**
- * Funkcja obsługująca rejestrację użytkownika
- */
-function handleRegistration($db, $data) {
-    // Sprawdzanie czy wymagane pola są obecne
-    if (!isset($data['name']) || !isset($data['email']) || !isset($data['password']) || !isset($data['confirmPassword'])) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Brak wymaganych pól']);
-        exit();
-    }
-    
-    $name = trim($data['name']);
-    $email = trim($data['email']);
-    $password = $data['password'];
-    $confirmPassword = $data['confirmPassword'];
-    
-    // Podstawowa walidacja
-    if (empty($name) || empty($email) || empty($password)) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Wszystkie pola są wymagane']);
-        exit();
-    }
-    
-    if ($password !== $confirmPassword) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Hasła nie są zgodne']);
-        exit();
-    }
-    
-    if (strlen($password) < 6) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Hasło musi mieć co najmniej 6 znaków']);
-        exit();
-    }
-    
-    // Sprawdzanie czy użytkownik już istnieje
-    $stmt = $db->prepare("SELECT id FROM users WHERE email = ?");
-    $stmt->execute([$email]);
-    
-    if ($stmt->fetch()) {
-        http_response_code(409); // Conflict
-        echo json_encode(['success' => false, 'message' => 'Użytkownik z tym adresem email już istnieje']);
-        exit();
-    }
-    
-    // Haszowanie hasła
-    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-    
-    // Dodawanie nowego użytkownika
-    $stmt = $db->prepare("INSERT INTO users (name, email, password) VALUES (?, ?, ?)");
-    $success = $stmt->execute([$name, $email, $hashedPassword]);
-    
-    if (!$success) {
-        http_response_code(500);
-        echo json_encode(['success' => false, 'message' => 'Błąd podczas rejestracji użytkownika']);
-        exit();
-    }
-    
-    $userId = $db->lastInsertId();
-    
-    // Generowanie tokenu sesji
-    $token = bin2hex(random_bytes(32));
-    $expiresAt = date('Y-m-d H:i:s', strtotime('+24 hours'));
-    
-    // Zapisywanie tokenu sesji
-    $stmt = $db->prepare("INSERT INTO sessions (user_id, token, expires_at) VALUES (?, ?, ?)");
-    $stmt->execute([$userId, $token, $expiresAt]);
-    
-    // Zwróć dane użytkownika wraz z tokenem
-    echo json_encode([
-        'success' => true,
-        'message' => 'Rejestracja udana',
-        'user' => [
-            'id' => $userId,
-            'name' => $name,
-            'email' => $email
-        ],
-        'token' => $token
-    ]);
-}
-
-/**
- * Funkcja obsługująca logowanie przez media społecznościowe
- */
-function handleSocialLogin($db, $data) {
-    if (!isset($data['provider']) || !isset($data['providerId']) || !isset($data['email'])) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Brak wymaganych danych dla logowania społecznościowego']);
-        exit();
-    }
-    
-    $provider = $data['provider']; // np. 'google', 'github'
-    $providerId = $data['providerId'];
-    $email = trim($data['email']);
-    $name = isset($data['name']) ? trim($data['name']) : '';
-    
-    
-    $stmt = $db->prepare("SELECT id, name, email FROM users WHERE email = ? OR (social_provider = ? AND social_provider_id = ?)");
-    $stmt->execute([$email, $provider, $providerId]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if ($user) {
-        // Użytkownik istnieje - zaloguj
-        
-        $token = bin2hex(random_bytes(32));
-        $expiresAt = date('Y-m-d H:i:s', strtotime('+24 hours'));
-        
-        $stmt = $db->prepare("INSERT INTO sessions (user_id, token, expires_at) VALUES (?, ?, ?)");
-        $stmt->execute([$user['id'], $token, $expiresAt]);
-        
         echo json_encode([
-            'success' => true,
-            'message' => 'Logowanie społecznościowe udane',
-            'user' => $user,
-            'token' => $token
+            "success" => false,
+            "message" => "Email and password are required"
+        ]);
+        exit();
+    }
+    
+    $email = trim($data->email);
+    $password = trim($data->password);
+    
+    // Check if user exists
+    $stmt = $conn->prepare("SELECT id, name, email, password FROM users WHERE email = :email");
+    $stmt->bindParam(":email", $email);
+    $stmt->execute();
+    
+    if ($stmt->rowCount() > 0) {
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        // Verify password
+        if (password_verify($password, $user['password'])) {
+            // Create session
+            session_start();
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['user_name'] = $user['name'];
+            $_SESSION['user_email'] = $user['email'];
+            
+            // Generate a simple token (in a real app, use JWT or a more secure method)
+            $token = bin2hex(random_bytes(32));
+            
+            // Store token in database
+            $stmt = $conn->prepare("UPDATE users SET token = :token, last_login = NOW() WHERE id = :id");
+            $stmt->bindParam(":token", $token);
+            $stmt->bindParam(":id", $user['id']);
+            $stmt->execute();
+            
+            http_response_code(200);
+            echo json_encode([
+                "success" => true,
+                "message" => "Login successful",
+                "user" => [
+                    "id" => $user['id'],
+                    "name" => $user['name'],
+                    "email" => $user['email']
+                ],
+                "token" => $token
+            ]);
+        } else {
+            http_response_code(401);
+            echo json_encode([
+                "success" => false,
+                "message" => "Invalid credentials"
+            ]);
+        }
+    } else {
+        http_response_code(401);
+        echo json_encode([
+            "success" => false,
+            "message" => "User not found"
+        ]);
+    }
+} elseif ($action === 'register') {
+    // Registration process
+    if (!isset($data->name) || !isset($data->email) || !isset($data->password) || 
+        empty($data->name) || empty($data->email) || empty($data->password)) {
+        http_response_code(400);
+        echo json_encode([
+            "success" => false,
+            "message" => "Name, email, and password are required"
+        ]);
+        exit();
+    }
+    
+    $name = trim($data->name);
+    $email = trim($data->email);
+    $password = trim($data->password);
+    
+    // Check if email already exists
+    $stmt = $conn->prepare("SELECT id FROM users WHERE email = :email");
+    $stmt->bindParam(":email", $email);
+    $stmt->execute();
+    
+    if ($stmt->rowCount() > 0) {
+        http_response_code(409); // Conflict
+        echo json_encode([
+            "success" => false,
+            "message" => "Email already in use"
+        ]);
+        exit();
+    }
+    
+    // Hash password
+    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+    
+    // Insert new user
+    $stmt = $conn->prepare(
+        "INSERT INTO users (name, email, password, created_at) 
+         VALUES (:name, :email, :password, NOW())"
+    );
+    $stmt->bindParam(":name", $name);
+    $stmt->bindParam(":email", $email);
+    $stmt->bindParam(":password", $hashed_password);
+    
+    if ($stmt->execute()) {
+        $user_id = $conn->lastInsertId();
+        
+        // Create session
+        session_start();
+        $_SESSION['user_id'] = $user_id;
+        $_SESSION['user_name'] = $name;
+        $_SESSION['user_email'] = $email;
+        
+        // Generate token
+        $token = bin2hex(random_bytes(32));
+        
+        // Store token
+        $stmt = $conn->prepare("UPDATE users SET token = :token WHERE id = :id");
+        $stmt->bindParam(":token", $token);
+        $stmt->bindParam(":id", $user_id);
+        $stmt->execute();
+        
+        http_response_code(201); // Created
+        echo json_encode([
+            "success" => true,
+            "message" => "Registration successful",
+            "user" => [
+                "id" => $user_id,
+                "name" => $name,
+                "email" => $email
+            ],
+            "token" => $token
         ]);
     } else {
-        // Nowy użytkownik - zarejestruj
-        $stmt = $db->prepare("INSERT INTO users (name, email, social_provider, social_provider_id) VALUES (?, ?, ?, ?)");
-        $success = $stmt->execute([$name, $email, $provider, $providerId]);
-        
-        if (!$success) {
-            http_response_code(500);
-            echo json_encode(['success' => false, 'message' => 'Błąd podczas rejestracji przez media społecznościowe']);
-            exit();
-        }
-        
-        $userId = $db->lastInsertId();
-        
-        
-        $token = bin2hex(random_bytes(32));
-        $expiresAt = date('Y-m-d H:i:s', strtotime('+24 hours'));
-        
-        $stmt = $db->prepare("INSERT INTO sessions (user_id, token, expires_at) VALUES (?, ?, ?)");
-        $stmt->execute([$userId, $token, $expiresAt]);
-        
+        http_response_code(500);
         echo json_encode([
-            'success' => true,
-            'message' => 'Rejestracja społecznościowa udana',
-            'user' => [
-                'id' => $userId,
-                'name' => $name,
-                'email' => $email
-            ],
-            'token' => $token
+            "success" => false,
+            "message" => "Registration failed"
         ]);
     }
-}
-
-/**
- * Funkcja obsługująca resetowanie hasła
- */
-function handlePasswordReset($db, $data) {
-    if (!isset($data['email'])) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Adres email jest wymagany']);
-        exit();
-    }
+} elseif ($action === 'logout') {
+    // Logout process
+    session_start();
     
-    $email = trim($data['email']);
-    
-   
-    $stmt = $db->prepare("SELECT id, name FROM users WHERE email = ?");
-    $stmt->execute([$email]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$user) {
+    if (isset($_SESSION['user_id'])) {
+        $user_id = $_SESSION['user_id'];
         
+        // Invalidate token
+        $stmt = $conn->prepare("UPDATE users SET token = NULL WHERE id = :id");
+        $stmt->bindParam(":id", $user_id);
+        $stmt->execute();
+        
+        // Clear session
+        session_unset();
+        session_destroy();
+        
+        http_response_code(200);
         echo json_encode([
-            'success' => true,
-            'message' => 'Jeśli konto istnieje, instrukcje resetowania hasła zostały wysłane na podany adres email'
+            "success" => true,
+            "message" => "Logout successful"
         ]);
-        exit();
+    } else {
+        http_response_code(401);
+        echo json_encode([
+            "success" => false,
+            "message" => "Not logged in"
+        ]);
     }
-    
-    
-    $resetToken = bin2hex(random_bytes(32));
-    $expiresAt = date('Y-m-d H:i:s', strtotime('+1 hour'));
-    
-    
-    $stmt = $db->prepare("INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)");
-    $stmt->execute([$user['id'], $resetToken, $expiresAt]);
-    
-    
-    $resetLink = "http://localhost:3000/reset-password?token=$resetToken";
-    
+} else {
+    http_response_code(400);
     echo json_encode([
-        'success' => true, 
-        'message' => 'Instrukcje resetowania hasła zostały wysłane na podany adres email',
-        'debug_link' => $resetLink 
+        "success" => false,
+        "message" => "Invalid action"
     ]);
 }
+?>

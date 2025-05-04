@@ -1,12 +1,12 @@
-// LoginModal.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import './loginModal.css';
-// Import ikon z Lucide
-import { Mail, Lock, User, Eye, EyeOff, Github, CheckCircle, X } from 'lucide-react';
+// Import icons from Lucide
+import { Mail, Lock, User, Eye, EyeOff, Github, CheckCircle, X, AlertCircle, ArrowLeft } from 'lucide-react';
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onLoginSuccess?: (userData: any) => void;
 }
 
 interface FormData {
@@ -16,9 +16,20 @@ interface FormData {
   confirmPassword: string;
 }
 
-const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
+interface ApiResponse {
+  success: boolean;
+  message: string;
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  token?: string;
+}
+
+const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLoginSuccess }) => {
   const [isVisible, setIsVisible] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+  const [activeTab, setActiveTab] = useState<'login' | 'register' | 'forgotpassword'>('login');
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
   const [formData, setFormData] = useState<FormData>({
@@ -27,10 +38,17 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     name: '',
     confirmPassword: ''
   });
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
   const tabIndicatorRef = useRef<HTMLDivElement>(null);
   const loginTabRef = useRef<HTMLButtonElement>(null);
   const registerTabRef = useRef<HTMLButtonElement>(null);
+
+
+  // API URL - update this to your PHP server location
+  const API_URL = './login.php';
 
   // Move tab indicator based on active tab
   useEffect(() => {
@@ -39,12 +57,27 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
         const { offsetLeft, offsetWidth } = loginTabRef.current;
         tabIndicatorRef.current.style.left = `${offsetLeft}px`;
         tabIndicatorRef.current.style.width = `${offsetWidth}px`;
-      } else {
+      } else if (activeTab === 'register') {
         const { offsetLeft, offsetWidth } = registerTabRef.current;
         tabIndicatorRef.current.style.left = `${offsetLeft}px`;
         tabIndicatorRef.current.style.width = `${offsetWidth}px`;
+      } else {
+        // Hide the indicator for forgotpassword tab
+        tabIndicatorRef.current.style.width = '0px';
       }
     }
+  }, [activeTab]);
+  
+  // Reset form when changing tabs
+  useEffect(() => {
+    setFormData({
+      email: '',
+      password: '',
+      name: '',
+      confirmPassword: ''
+    });
+    setError(null);
+    setSuccessMessage(null);
   }, [activeTab]);
   
   // Handle form input changes
@@ -54,30 +87,104 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
       ...formData,
       [name]: value
     });
+    // Clear previous errors when user types
+    setError(null);
   };
   
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>): void => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
+    setError(null);
+    setSuccessMessage(null);
     
-    if (activeTab === 'register' && formData.password !== formData.confirmPassword) {
-      alert('Hasła nie są zgodne!');
+    // Validate form
+    if (activeTab === 'register') {
+      if (formData.password !== formData.confirmPassword) {
+        setError('Hasła nie są zgodne!');
+        return;
+      }
+      
+      if (formData.password.length < 8) {
+        setError('Hasło musi mieć co najmniej 8 znaków');
+        return;
+      }
+    }
+
+    // Validate email for forgot password
+    if (activeTab === 'forgotpassword' && !formData.email) {
+      setError('Wprowadź adres email');
       return;
     }
     
-    console.log('Form submitted:', {
-      type: activeTab,
-      data: formData
-    });
-    
-    // Add your authentication logic here
-    
-    // Optional: Close the modal after successful submission
-    // onClose();
+    try {
+      setIsLoading(true);
+      
+      let apiPayload: any = {
+        action: activeTab,
+        email: formData.email
+      };
+      
+      // Add additional fields based on action
+      if (activeTab === 'login') {
+        apiPayload.password = formData.password;
+      } else if (activeTab === 'register') {
+        apiPayload.password = formData.password;
+        apiPayload.name = formData.name;
+      }
+      
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(apiPayload),
+        credentials: 'include' // Include cookies in the request
+      });
+      
+      const data: ApiResponse = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Wystąpił błąd podczas przetwarzania żądania');
+      }
+      
+      // Success
+      setSuccessMessage(data.message || (activeTab === 'forgotpassword' ? 'Wysłano link do resetowania hasła na podany adres email' : 'Operacja zakończona pomyślnie'));
+      
+      // For login/register, handle token
+      if (data.token && (activeTab === 'login' || activeTab === 'register')) {
+        localStorage.setItem('authToken', data.token);
+        
+        // If user data is returned, store it as well
+        if (data.user) {
+          localStorage.setItem('userData', JSON.stringify(data.user));
+        }
+        
+        // Call success callback if provided
+        if (onLoginSuccess && data.user) {
+          onLoginSuccess(data.user);
+        }
+        
+        // Close modal after short delay
+        setTimeout(() => {
+          onClose();
+        }, 1500);
+      }
+      
+      // For forgot password, go back to login after delay
+      if (activeTab === 'forgotpassword') {
+        setTimeout(() => {
+          setActiveTab('login');
+        }, 3000);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Wystąpił nieznany błąd');
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   // Toggle between login and registration tabs
-  const toggleTab = (tab: 'login' | 'register'): void => {
+  const toggleTab = (tab: 'login' | 'register' | 'forgotpassword'): void => {
     setActiveTab(tab);
   };
   
@@ -118,6 +225,15 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
   // If modal is not open, don't render anything
   if (!isOpen) return null;
   
+  function handleForgotPasswordButton() {
+    setActiveTab('forgotpassword');
+  }
+
+  // Go back to login from forgot password
+  function handleBackToLogin() {
+    setActiveTab('login');
+  }
+
   return (
     <div 
       className={`modal-backdrop ${isVisible ? 'visible' : ''}`}
@@ -125,31 +241,67 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     >
       <div className={`modal-container ${isVisible ? 'visible' : ''}`}>
         <div className="modal-header">
-          <div className="tab-container">
-            <button 
-              ref={loginTabRef}
-              className={`tab-button ${activeTab === 'login' ? 'active' : ''}`} 
-              onClick={() => toggleTab('login')}
-            >
-              <Lock size={18} className="tab-icon" />
-              Logowanie
-            </button>
-            <button 
-              ref={registerTabRef}
-              className={`tab-button ${activeTab === 'register' ? 'active' : ''}`} 
-              onClick={() => toggleTab('register')}
-            >
-              <User size={18} className="tab-icon" />
-              Rejestracja
-            </button>
-            <div ref={tabIndicatorRef} className="tab-indicator"></div>
-          </div>
-          <button className="close-button" onClick={onClose} aria-label="Zamknij">
+          {activeTab !== 'forgotpassword' ? (
+            <div className="tab-container">
+              <button 
+                ref={loginTabRef}
+                className={`tab-button ${activeTab === 'login' ? 'active' : ''}`} 
+                onClick={() => toggleTab('login')}
+                disabled={isLoading}
+              >
+                <Lock size={18} className="tab-icon" />
+                Logowanie
+              </button>
+              <button 
+                ref={registerTabRef}
+                className={`tab-button ${activeTab === 'register' ? 'active' : ''}`} 
+                onClick={() => toggleTab('register')}
+                disabled={isLoading}
+              >
+                <User size={18} className="tab-icon" />
+                Rejestracja
+              </button>
+              <div ref={tabIndicatorRef} className="tab-indicator"></div>
+            </div>
+          ) : (
+            <div className="forgot-password-header">
+              <button 
+                className="back-button" 
+                onClick={handleBackToLogin}
+                disabled={isLoading}
+              >
+                <ArrowLeft size={18} />
+                <span>Powrót do logowania</span>
+              </button>
+              <h2>Resetowanie hasła</h2>
+            </div>
+          )}
+          <button 
+            className="close-button" 
+            onClick={onClose} 
+            aria-label="Zamknij"
+            disabled={isLoading}
+          >
             <X size={18} />
           </button>
         </div>
         
         <div className="modal-body">
+          {/* Status Messages */}
+          {error && (
+            <div className="status-message error">
+              <AlertCircle size={18} />
+              <span>{error}</span>
+            </div>
+          )}
+          
+          {successMessage && (
+            <div className="status-message success">
+              <CheckCircle size={18} />
+              <span>{successMessage}</span>
+            </div>
+          )}
+          
           <form onSubmit={handleSubmit}>
             <div className="form-content">
               {/* Login Form */}
@@ -167,6 +319,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                     onChange={handleInputChange}
                     placeholder="Wprowadź swój email"
                     required
+                    disabled={isLoading}
                   />
                 </div>
                 
@@ -184,11 +337,13 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                       onChange={handleInputChange}
                       placeholder="Wprowadź swoje hasło"
                       required
+                      disabled={isLoading}
                     />
                     <button 
                       type="button" 
                       className="toggle-password"
                       onClick={togglePasswordVisibility}
+                      disabled={isLoading}
                     >
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
@@ -197,28 +352,53 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                 
                 <div className="form-options">
                   <label className="checkbox-container">
-                    <input type="checkbox" name="remember" />
+                    <input 
+                      type="checkbox" 
+                      name="remember" 
+                      disabled={isLoading}
+                    />
                     <span className="checkmark"></span>
                     Zapamiętaj mnie
                   </label>
-                  <a href="#" className="forgot-password">Zapomniałeś hasła?</a>
+                  <button 
+                    type="button" 
+                    className="forgot-password-button" 
+                    onClick={handleForgotPasswordButton}
+                    disabled={isLoading}
+                  >
+                    <span className="forgot-password">Zapomniałeś hasła?</span>
+                  </button>
                 </div>
                 
-                <button type="submit" className="submit-button">
-                  <span className="button-text">Zaloguj się</span>
+                <button 
+                  type="submit" 
+                  className={`submit-button ${isLoading ? 'loading' : ''}`}
+                  disabled={isLoading}
+                >
+                  <span className="button-text">
+                    {isLoading ? 'Logowanie...' : 'Zaloguj się'}
+                  </span>
                   <span className="button-icon">→</span>
                 </button>
                 
                 <div className="social-login">
                   <p>lub kontynuuj przez</p>
                   <div className="social-buttons">
-                    <button type="button" className="social-button google">
+                    <button 
+                      type="button" 
+                      className="social-button google"
+                      disabled={isLoading}
+                    >
                       <svg className="social-icon" viewBox="0 0 24 24" width="18" height="18">
                         <path fill="currentColor" d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/>
                       </svg>
                       <span>Google</span>
                     </button>
-                    <button type="button" className="social-button github">
+                    <button 
+                      type="button" 
+                      className="social-button github"
+                      disabled={isLoading}
+                    >
                       <Github className="social-icon" size={18} />
                       <span>GitHub</span>
                     </button>
@@ -241,6 +421,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                     onChange={handleInputChange}
                     placeholder="Wprowadź swoje imię"
                     required
+                    disabled={isLoading}
                   />
                 </div>
                 
@@ -257,6 +438,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                     onChange={handleInputChange}
                     placeholder="Wprowadź swój email"
                     required
+                    disabled={isLoading}
                   />
                 </div>
                 
@@ -274,11 +456,14 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                       onChange={handleInputChange}
                       placeholder="Utwórz hasło"
                       required
+                      disabled={isLoading}
+                      minLength={8}
                     />
                     <button 
                       type="button" 
                       className="toggle-password"
                       onClick={togglePasswordVisibility}
+                      disabled={isLoading}
                     >
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
@@ -299,11 +484,14 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                       onChange={handleInputChange}
                       placeholder="Potwierdź hasło"
                       required
+                      disabled={isLoading}
+                      minLength={8}
                     />
                     <button 
                       type="button" 
                       className="toggle-password"
                       onClick={toggleConfirmPasswordVisibility}
+                      disabled={isLoading}
                     >
                       {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
@@ -312,14 +500,59 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                 
                 <div className="form-options">
                   <label className="checkbox-container">
-                    <input type="checkbox" name="terms" required />
+                    <input 
+                      type="checkbox" 
+                      name="terms" 
+                      required
+                      disabled={isLoading} 
+                    />
                     <span className="checkmark"></span>
-                    Akceptuję <a href="#" className="terms-link">regulamin</a> i <a href="#" className="privacy-link">politykę prywatności</a>
+                    Akceptuję&nbsp;<a href="#" target="_blank" className="terms-link" >regulamin</a>&nbsp;i&nbsp;<a href="#" target="_blank" className="privacy-link">politykę prywatności</a>
                   </label>
                 </div>
                 
-                <button type="submit" className="submit-button">
-                  <span className="button-text">Utwórz konto</span>
+                <button 
+                  type="submit" 
+                  className={`submit-button ${isLoading ? 'loading' : ''}`}
+                  disabled={isLoading}
+                >
+                  <span className="button-text">
+                    {isLoading ? 'Tworzenie konta...' : 'Utwórz konto'}
+                  </span>
+                  <span className="button-icon">→</span>
+                </button>
+              </div>
+
+              {/* Forgot Password Form */}
+              <div className={`form-panel ${activeTab === 'forgotpassword' ? 'active' : ''}`}>
+                <div className="forgot-password-description">
+                  <p>Wprowadź swój adres email, a wyślemy Ci link umożliwiający zresetowanie hasła.</p>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="forgot-email">
+                    <Mail size={18} className="input-icon" />
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    id="forgot-email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    placeholder="Wprowadź swój email"
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+                
+                <button 
+                  type="submit" 
+                  className={`submit-button ${isLoading ? 'loading' : ''}`}
+                  disabled={isLoading}
+                >
+                  <span className="button-text">
+                    {isLoading ? 'Wysyłanie...' : 'Wyślij link resetujący'}
+                  </span>
                   <span className="button-icon">→</span>
                 </button>
               </div>

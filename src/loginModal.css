@@ -66,7 +66,14 @@
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     position: relative;
   }
-  
+  .forgot-password-button {
+    background: none;
+    border: none;
+    color: var(--text-dark);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: color 0.2s ease;
+  }
   .tab-container {
     display: flex;
     position: relative;
@@ -466,5 +473,130 @@
       flex-direction: column;
       align-items: flex-start;
       gap: 10px;
+    }
+  }
+  .forgot-password-header {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1;
+  }
+  
+  .forgot-password-header h2 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-light);
+    margin: 0;
+  }
+  
+  .back-button {
+    background: none;
+    border: none;
+    color: var(--text-dark);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0;
+    width: fit-content;
+  }
+  
+  .back-button:hover {
+    color: var(--text-light);
+  }
+  
+  .forgot-password-description {
+    margin-bottom: 20px;
+    color: var(--text-dark);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    animation: fadeIn 0.4s ease forwards;
+    opacity: 0;
+    transform: translateY(10px);
+    animation-delay: 0.05s;
+  }
+  
+  .forgot-password-button {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--accent-color);
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: color 0.2s ease;
+  }
+  
+  .forgot-password-button:hover {
+    color: var(--text-light);
+    text-decoration: underline;
+  }
+  
+  /* Status Message styles (for both error and success messages) */
+  .status-message {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+    animation: slideIn 0.3s ease forwards;
+  }
+  
+  .status-message.error {
+    background-color: rgba(248, 81, 73, 0.1);
+    border: 1px solid rgba(248, 81, 73, 0.2);
+    color: #f85149;
+  }
+  
+  .status-message.success {
+    background-color: rgba(63, 185, 80, 0.1);
+    border: 1px solid rgba(63, 185, 80, 0.2);
+    color: #3fb950;
+  }
+  
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* Fix for the original markup issue with nested buttons */
+  button:not(.tab-button) button {
+    display: inline-block;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  /* Loading state for submit button */
+  .submit-button.loading {
+    opacity: 0.8;
+    cursor: wait;
+  }
+  
+  /* Loading spinner - add if needed */
+  .submit-button.loading::after {
+    content: '';
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 1s linear infinite;
+    margin-left: 8px;
+  }
+  
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
     }
   }
