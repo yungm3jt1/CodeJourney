@@ -1,10 +1,11 @@
 // App.tsx
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import {  Home, Bookmark, Wrench, Info, Mail } from 'lucide-react';
+import {  Home, Bookmark, Wrench, Info, Mail, User } from 'lucide-react';
 import LoginModal from './loginModal';
 
 function App() {
+  
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
@@ -20,12 +21,84 @@ function App() {
   const fullText = 'Begin Your Coding Journey Today';
   const fullCommand = './welcome.sh';
   const fullOutput = 'echo "Learn, build, and grow with our coding resources"';
-
+  const verifyUserAuthentication = async (): Promise<boolean> => {
+    const token = localStorage.getItem('authToken');
+    
+    if (!token) return false;
+    
+    try {
+      const response = await fetch('http://localhost/phpmyadmin/auth-project/verify_token.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ token }),
+        credentials: 'include'
+      });
+      
+      const data = await response.json();
+      return data.success === true;
+    } catch (error) {
+      console.error('Token verification failed:', error);
+      // Clear invalid authentication
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userData');
+      return false;
+    }
+  };
+  const checkAuth = async () => {
+    const isLoggedIn = await verifyUserAuthentication();
+    
+    if (isLoggedIn) {
+      return true;
+      // Show authenticated content
+    } else {
+      return false;
+      // Show login modal or redirect to login page
+    }
+  };
+  window.onload = function() {
+    checkAuth().then(isLoggedIn => {
+      if (!isLoggedIn) {
+        document.getElementById("loginButton")?.classList.remove("LoggedIn");
+        document.getElementById("loginButton")?.classList.add("login-button");
+        document.getElementById("cwel")?.classList.remove("icon-login");
+        document.getElementById("cwel")?.classList.add("off");
+        
+      } else {
+        document.getElementById("loginButton")?.classList.add("LoggedIn");
+        document.getElementById("loginButton")?.classList.remove("login-button");
+        document.getElementById("cwel")?.classList.add("icon-login");
+        document.getElementById("cwel")?.classList.remove("off");
+        
+      }
+    });
+  };
   // Handle login button click
   const handleLogin = () => {
-    setIsLoginModalOpen(true);
-  };
+    // Check if user is authenticated
+    checkAuth().then(isLoggedIn => {
+      if (!isLoggedIn) {
+        setIsLoginModalOpen(true);
+      } else {
+        alert('User is already logged in');
+        setIsLoginModalOpen(false);
+      }
+    });
 
+  };
+  const handleGetStarted = () => {
+    // Check if user is authenticated
+    checkAuth().then(isLoggedIn => {
+      if (!isLoggedIn) {
+        setIsLoginModalOpen(true);
+      } else {
+        alert('User is already logged in');
+        setIsLoginModalOpen(false);
+      }
+    });
+    
+  };
   // Close login modal
   const closeLoginModal = () => {
     setIsLoginModalOpen(false);
@@ -140,9 +213,10 @@ function App() {
           </div>
           {/* header right */}
           <div className="header-right">
-            <button onClick={handleLogin} className="login-button">
+            <button id="loginButton" onClick={handleLogin} className="login-button">
               <span className="button-text">Login</span>
               <span className="button-icon">→</span>
+              <span id="cwel"><User size="18" className='icon-login'></User></span>
             </button>
           </div>
         </div>
@@ -167,7 +241,7 @@ function App() {
               <div className="terminal-button red"></div>
               <div className="terminal-button yellow"></div>
               <div className="terminal-button green"></div>
-              <div className="terminal-title">journey2code.sh</div>
+              <div className="terminal-title">Terminal</div>
             </div>
             <div className="terminal-body">
               {/* Command line with prompt - now first */}
@@ -207,7 +281,7 @@ function App() {
               )}
             </div>
           </div>
-          <button className="cta-button">
+          <button className="cta-button" onClick={handleLogin}>
             <span className="button-text">Get Started</span>
             <span className="button-icon">→</span>
           </button>
@@ -225,7 +299,7 @@ function App() {
             <div className="card-footer">
               <a href="#learn" className="learn-more">Explore tutorials</a>
             </div>
-          </div>  
+          </div>
           
           <div className="feature-card">
             <div className="feature-icon">

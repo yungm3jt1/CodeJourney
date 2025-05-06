@@ -25,12 +25,3 @@ CREATE TABLE IF NOT EXISTS reset_tokens (
 ) ENGINE=InnoDB;
 
 -- Optional: Create user_logs table for login history
-CREATE TABLE IF NOT EXISTS user_logs (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    action VARCHAR(50) NOT NULL,
-    ip_address VARCHAR(45) DEFAULT NULL,
-    user_agent TEXT DEFAULT NULL,
-    created_at DATETIME NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB;

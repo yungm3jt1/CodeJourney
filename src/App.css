@@ -68,7 +68,29 @@ body {
   height: var(--header-height);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
-
+.LoggedIn {
+  width: 40px;
+  height: 40px;
+  background-color: var(--secondary-color);
+  border: none;
+  font-size: 0px;
+}
+.off {
+  display: none;
+  width: 0px;
+  height: 0px;
+  border: none;
+  background-color: var(--secondary-color);
+}
+.icon-login {
+  width: 40px;
+  height: 40px;
+  background-color: var(--secondary-color);
+  border: none;
+  font-size: 0px;
+  color: white;
+  cursor:pointer;
+}
 .header-content {
   display: flex;
   justify-content: space-between;

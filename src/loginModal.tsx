@@ -46,9 +46,8 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLoginSuccess
   const loginTabRef = useRef<HTMLButtonElement>(null);
   const registerTabRef = useRef<HTMLButtonElement>(null);
 
-
   // API URL - update this to your PHP server location
-  const API_URL = './login.php';
+  const API_URL = 'http://localhost/phpmyadmin/auth-project/login.php';
 
   // Move tab indicator based on active tab
   useEffect(() => {
@@ -109,7 +108,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLoginSuccess
         return;
       }
     }
-
+    
     // Validate email for forgot password
     if (activeTab === 'forgotpassword' && !formData.email) {
       setError('Wprowadź adres email');
@@ -132,13 +131,15 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLoginSuccess
         apiPayload.name = formData.name;
       }
       
+      console.log('Sending payload:', apiPayload);
+      
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(apiPayload),
-        credentials: 'include' // Include cookies in the request
+        credentials: 'include'
       });
       
       const data: ApiResponse = await response.json();
@@ -167,6 +168,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLoginSuccess
         // Close modal after short delay
         setTimeout(() => {
           onClose();
+          window.location.reload();
         }, 1500);
       }
       
@@ -177,6 +179,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLoginSuccess
         }, 3000);
       }
     } catch (err) {
+      console.error('Login error:', err);
       setError(err instanceof Error ? err.message : 'Wystąpił nieznany błąd');
     } finally {
       setIsLoading(false);
@@ -302,262 +305,248 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLoginSuccess
             </div>
           )}
           
-          <form onSubmit={handleSubmit}>
-            <div className="form-content">
-              {/* Login Form */}
-              <div className={`form-panel ${activeTab === 'login' ? 'active' : ''}`}>
-                <div className="form-group">
-                  <label htmlFor="login-email">
-                    <Mail size={18} className="input-icon" />
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    id="login-email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    placeholder="Wprowadź swój email"
-                    required
-                    disabled={isLoading}
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="login-password">
-                    <Lock size={18} className="input-icon" />
-                    Hasło
-                  </label>
-                  <div className="password-input-container">
+          <div className="form-content">
+            {/* Login Form */}
+            <div className={`form-panel ${activeTab === 'login' ? 'active' : ''}`}>
+              {activeTab === 'login' && (
+                <form onSubmit={handleSubmit}>
+                  <div className="form-group">
+                    <label htmlFor="login-email">
+                      <Mail size={18} className="input-icon" />
+                      Email
+                    </label>
                     <input
-                      type={showPassword ? "text" : "password"}
-                      id="login-password"
-                      name="password"
-                      value={formData.password}
+                      type="email"
+                      id="login-email"
+                      name="email"
+                      value={formData.email}
                       onChange={handleInputChange}
-                      placeholder="Wprowadź swoje hasło"
+                      placeholder="Wprowadź swój email"
                       required
                       disabled={isLoading}
                     />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label htmlFor="login-password">
+                      <Lock size={18} className="input-icon" />
+                      Hasło
+                    </label>
+                    <div className="password-input-container">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        id="login-password"
+                        name="password"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        placeholder="Wprowadź swoje hasło"
+                        required
+                        disabled={isLoading}
+                      />
+                      <button 
+                        type="button" 
+                        className="toggle-password"
+                        onClick={togglePasswordVisibility}
+                        disabled={isLoading}
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="form-options">
+                    <label className="checkbox-container">
+                      <input 
+                        type="checkbox" 
+                        name="remember" 
+                        disabled={isLoading}
+                      />
+                      <span className="checkmark"></span>
+                      Zapamiętaj mnie
+                    </label>
                     <button 
                       type="button" 
-                      className="toggle-password"
-                      onClick={togglePasswordVisibility}
+                      className="forgot-password-button" 
+                      onClick={handleForgotPasswordButton}
                       disabled={isLoading}
                     >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      <span className="forgot-password">Zapomniałeś hasła?</span>
                     </button>
                   </div>
-                </div>
-                
-                <div className="form-options">
-                  <label className="checkbox-container">
-                    <input 
-                      type="checkbox" 
-                      name="remember" 
-                      disabled={isLoading}
-                    />
-                    <span className="checkmark"></span>
-                    Zapamiętaj mnie
-                  </label>
+                  
                   <button 
-                    type="button" 
-                    className="forgot-password-button" 
-                    onClick={handleForgotPasswordButton}
+                    type="submit" 
+                    className={`submit-button ${isLoading ? 'loading' : ''}`}
                     disabled={isLoading}
                   >
-                    <span className="forgot-password">Zapomniałeś hasła?</span>
+                    <span className="button-text">
+                      {isLoading ? 'Logowanie...' : 'Zaloguj się'}
+                    </span>
+                    <span className="button-icon">→</span>
                   </button>
-                </div>
-                
-                <button 
-                  type="submit" 
-                  className={`submit-button ${isLoading ? 'loading' : ''}`}
-                  disabled={isLoading}
-                >
-                  <span className="button-text">
-                    {isLoading ? 'Logowanie...' : 'Zaloguj się'}
-                  </span>
-                  <span className="button-icon">→</span>
-                </button>
-                
-                <div className="social-login">
-                  <p>lub kontynuuj przez</p>
-                  <div className="social-buttons">
-                    <button 
-                      type="button" 
-                      className="social-button google"
-                      disabled={isLoading}
-                    >
-                      <svg className="social-icon" viewBox="0 0 24 24" width="18" height="18">
-                        <path fill="currentColor" d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/>
-                      </svg>
-                      <span>Google</span>
-                    </button>
-                    <button 
-                      type="button" 
-                      className="social-button github"
-                      disabled={isLoading}
-                    >
-                      <Github className="social-icon" size={18} />
-                      <span>GitHub</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Register Form */}
-              <div className={`form-panel ${activeTab === 'register' ? 'active' : ''}`}>
-                <div className="form-group">
-                  <label htmlFor="register-name">
-                    <User size={18} className="input-icon" />
-                    Imię
-                  </label>
-                  <input
-                    type="text"
-                    id="register-name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    placeholder="Wprowadź swoje imię"
-                    required
-                    disabled={isLoading}
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="register-email">
-                    <Mail size={18} className="input-icon" />
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    id="register-email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    placeholder="Wprowadź swój email"
-                    required
-                    disabled={isLoading}
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="register-password">
-                    <Lock size={18} className="input-icon" />
-                    Hasło
-                  </label>
-                  <div className="password-input-container">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      id="register-password"
-                      name="password"
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      placeholder="Utwórz hasło"
-                      required
-                      disabled={isLoading}
-                      minLength={8}
-                    />
-                    <button 
-                      type="button" 
-                      className="toggle-password"
-                      onClick={togglePasswordVisibility}
-                      disabled={isLoading}
-                    >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="register-confirm-password">
-                    <CheckCircle size={18} className="input-icon" />
-                    Potwierdź hasło
-                  </label>
-                  <div className="password-input-container">
-                    <input
-                      type={showConfirmPassword ? "text" : "password"}
-                      id="register-confirm-password"
-                      name="confirmPassword"
-                      value={formData.confirmPassword}
-                      onChange={handleInputChange}
-                      placeholder="Potwierdź hasło"
-                      required
-                      disabled={isLoading}
-                      minLength={8}
-                    />
-                    <button 
-                      type="button" 
-                      className="toggle-password"
-                      onClick={toggleConfirmPasswordVisibility}
-                      disabled={isLoading}
-                    >
-                      {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                </div>
-                
-                <div className="form-options">
-                  <label className="checkbox-container">
-                    <input 
-                      type="checkbox" 
-                      name="terms" 
-                      required
-                      disabled={isLoading} 
-                    />
-                    <span className="checkmark"></span>
-                    Akceptuję&nbsp;<a href="#" target="_blank" className="terms-link" >regulamin</a>&nbsp;i&nbsp;<a href="#" target="_blank" className="privacy-link">politykę prywatności</a>
-                  </label>
-                </div>
-                
-                <button 
-                  type="submit" 
-                  className={`submit-button ${isLoading ? 'loading' : ''}`}
-                  disabled={isLoading}
-                >
-                  <span className="button-text">
-                    {isLoading ? 'Tworzenie konta...' : 'Utwórz konto'}
-                  </span>
-                  <span className="button-icon">→</span>
-                </button>
-              </div>
-
-              {/* Forgot Password Form */}
-              <div className={`form-panel ${activeTab === 'forgotpassword' ? 'active' : ''}`}>
-                <div className="forgot-password-description">
-                  <p>Wprowadź swój adres email, a wyślemy Ci link umożliwiający zresetowanie hasła.</p>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="forgot-email">
-                    <Mail size={18} className="input-icon" />
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    id="forgot-email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    placeholder="Wprowadź swój email"
-                    required
-                    disabled={isLoading}
-                  />
-                </div>
-                
-                <button 
-                  type="submit" 
-                  className={`submit-button ${isLoading ? 'loading' : ''}`}
-                  disabled={isLoading}
-                >
-                  <span className="button-text">
-                    {isLoading ? 'Wysyłanie...' : 'Wyślij link resetujący'}
-                  </span>
-                  <span className="button-icon">→</span>
-                </button>
-              </div>
+                </form>
+              )}
             </div>
-          </form>
+
+            {/* Register Form */}
+            <div className={`form-panel ${activeTab === 'register' ? 'active' : ''}`}>
+              {activeTab === 'register' && (
+                <form onSubmit={handleSubmit}>
+                  <div className="form-group">
+                    <label htmlFor="register-name">
+                      <User size={18} className="input-icon" />
+                      Imię
+                    </label>
+                    <input
+                      type="text"
+                      id="register-name"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      placeholder="Wprowadź swoje imię"
+                      required
+                      disabled={isLoading}
+                    />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label htmlFor="register-email">
+                      <Mail size={18} className="input-icon" />
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      id="register-email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="Wprowadź swój email"
+                      required
+                      disabled={isLoading}
+                    />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label htmlFor="register-password">
+                      <Lock size={18} className="input-icon" />
+                      Hasło
+                    </label>
+                    <div className="password-input-container">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        id="register-password"
+                        name="password"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        placeholder="Utwórz hasło"
+                        required
+                        disabled={isLoading}
+                        minLength={8}
+                      />
+                      <button 
+                        type="button" 
+                        className="toggle-password"
+                        onClick={togglePasswordVisibility}
+                        disabled={isLoading}
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="form-group">
+                    <label htmlFor="register-confirm-password">
+                      <CheckCircle size={18} className="input-icon" />
+                      Potwierdź hasło
+                    </label>
+                    <div className="password-input-container">
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        id="register-confirm-password"
+                        name="confirmPassword"
+                        value={formData.confirmPassword}
+                        onChange={handleInputChange}
+                        placeholder="Potwierdź hasło"
+                        required
+                        disabled={isLoading}
+                        minLength={8}
+                      />
+                      <button 
+                        type="button" 
+                        className="toggle-password"
+                        onClick={toggleConfirmPasswordVisibility}
+                        disabled={isLoading}
+                      >
+                        {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="form-options">
+                    <label className="checkbox-container">
+                      <input 
+                        type="checkbox" 
+                        name="terms" 
+                        required
+                        disabled={isLoading} 
+                      />
+                      <span className="checkmark"></span>
+                      Akceptuję&nbsp;<a href="#" target="_blank" className="terms-link" >regulamin</a>&nbsp;i&nbsp;<a href="#" target="_blank" className="privacy-link">politykę prywatności</a>
+                    </label>
+                  </div>
+                  
+                  <button 
+                    type="submit" 
+                    className={`submit-button ${isLoading ? 'loading' : ''}`}
+                    disabled={isLoading}
+                  >
+                    <span className="button-text">
+                      {isLoading ? 'Tworzenie konta...' : 'Utwórz konto'}
+                    </span>
+                    <span className="button-icon">→</span>
+                  </button>
+                </form>
+              )}
+            </div>
+
+            {/* Forgot Password Form */}
+            <div className={`form-panel ${activeTab === 'forgotpassword' ? 'active' : ''}`}>
+              {activeTab === 'forgotpassword' && (
+                <form onSubmit={handleSubmit}>
+                  <div className="forgot-password-description">
+                    <p>Wprowadź swój adres email, a wyślemy Ci link umożliwiający zresetowanie hasła.</p>
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="forgot-email">
+                      <Mail size={18} className="input-icon" />
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      id="forgot-email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="Wprowadź swój email"
+                      required
+                      disabled={isLoading}
+                    />
+                  </div>
+                  
+                  <button 
+                    type="submit" 
+                    className={`submit-button ${isLoading ? 'loading' : ''}`}
+                    disabled={isLoading}
+                  >
+                    <span className="button-text">
+                      {isLoading ? 'Wysyłanie...' : 'Wyślij link resetujący'}
+                    </span>
+                    <span className="button-icon">→</span>
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
