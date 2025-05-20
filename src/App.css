@@ -656,3 +656,9 @@ body {
     gap: 1rem;
   }
 } 
+.language-symbol {
+  font-size: 1.5rem;
+  color: var(--accent-color);
+  font-family: 'JetBrains Mono', monospace;
+  opacity: 0.9;
+}

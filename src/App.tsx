@@ -1,14 +1,8 @@
-// App.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import './App.css';
-import {  Home, Bookmark, Wrench, Info, Mail, User } from 'lucide-react';
-import LoginModal from './loginModal';
 
 function App() {
-  
-  const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
-  const [isLoaded, setIsLoaded] = useState<boolean>(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [animationState, setAnimationState] = useState({
     heading: '',
     command: '',
@@ -21,333 +15,162 @@ function App() {
   const fullText = 'Begin Your Coding Journey Today';
   const fullCommand = './welcome.sh';
   const fullOutput = 'echo "Learn, build, and grow with our coding resources"';
-  const verifyUserAuthentication = async (): Promise<boolean> => {
-    const token = localStorage.getItem('authToken');
-    
-    if (!token) return false;
-    
-    try {
-      const response = await fetch('http://localhost/phpmyadmin/auth-project/verify_token.php', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ token }),
-        credentials: 'include'
-      });
-      
-      const data = await response.json();
-      return data.success === true;
-    } catch (error) {
-      console.error('Token verification failed:', error);
-      // Clear invalid authentication
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('userData');
-      return false;
-    }
-  };
-  const checkAuth = async () => {
-    const isLoggedIn = await verifyUserAuthentication();
-    
-    if (isLoggedIn) {
-      return true;
-      // Show authenticated content
-    } else {
-      return false;
-      // Show login modal or redirect to login page
-    }
-  };
-  window.onload = function() {
-    checkAuth().then(isLoggedIn => {
-      if (!isLoggedIn) {
-        document.getElementById("loginButton")?.classList.remove("LoggedIn");
-        document.getElementById("loginButton")?.classList.add("login-button");
-        document.getElementById("cwel")?.classList.remove("icon-login");
-        document.getElementById("cwel")?.classList.add("off");
-        
-      } else {
-        document.getElementById("loginButton")?.classList.add("LoggedIn");
-        document.getElementById("loginButton")?.classList.remove("login-button");
-        document.getElementById("cwel")?.classList.add("icon-login");
-        document.getElementById("cwel")?.classList.remove("off");
-        
-      }
-    });
-  };
-  // Handle login button click
-  const handleLogin = () => {
-    // Check if user is authenticated
-    checkAuth().then(isLoggedIn => {
-      if (!isLoggedIn) {
-        setIsLoginModalOpen(true);
-      } else {
-        alert('User is already logged in');
-        setIsLoginModalOpen(false);
-      }
-    });
 
-  };
-  const handleGetStarted = () => {
-    // Check if user is authenticated
-    checkAuth().then(isLoggedIn => {
-      if (!isLoggedIn) {
-        setIsLoginModalOpen(true);
-      } else {
-        alert('User is already logged in');
-        setIsLoginModalOpen(false);
-      }
-    });
-    
-  };
-  // Close login modal
-  const closeLoginModal = () => {
-    setIsLoginModalOpen(false);
-  };
-
-  // Toggle mobile menu
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
-  
   useEffect(() => {
     setIsLoaded(true);
-    
-    // Step 1
+
     const typeCommand = () => {
       let index = 0;
-      const commandInterval = setInterval(() => {
+      const interval = setInterval(() => {
         if (index < fullCommand.length) {
-          setAnimationState(prev => ({
+          setAnimationState((prev) => ({
             ...prev,
             command: fullCommand.substring(0, index + 1)
           }));
           index++;
         } else {
-          clearInterval(commandInterval);
+          clearInterval(interval);
           setTimeout(() => {
-            setAnimationState(prev => ({
-              ...prev,
-              currentStep: 'heading' 
-            }));
+            setAnimationState((prev) => ({ ...prev, currentStep: 'heading' }));
             typeHeading();
-          }, 400); 
+          }, 400);
         }
       }, 100);
     };
-    
-    // Step 2
+
     const typeHeading = () => {
       let index = 0;
-      const headingInterval = setInterval(() => {
+      const interval = setInterval(() => {
         if (index < fullText.length) {
-          setAnimationState(prev => ({
+          setAnimationState((prev) => ({
             ...prev,
             heading: fullText.substring(0, index + 1)
           }));
           index++;
         } else {
-          clearInterval(headingInterval);
+          clearInterval(interval);
           setTimeout(() => {
-            setAnimationState(prev => ({
-              ...prev,
-              currentStep: 'output' 
-            }));
+            setAnimationState((prev) => ({ ...prev, currentStep: 'output' }));
             typeOutput();
-          }, 400); 
+          }, 400);
         }
       }, 80);
     };
-    
-    // Step 3 
+
     const typeOutput = () => {
       let index = 0;
-      const outputInterval = setInterval(() => {
+      const interval = setInterval(() => {
         if (index < fullOutput.length) {
-          setAnimationState(prev => ({
+          setAnimationState((prev) => ({
             ...prev,
             output: fullOutput.substring(0, index + 1)
           }));
           index++;
         } else {
-          clearInterval(outputInterval);
+          clearInterval(interval);
           setTimeout(() => {
-            setAnimationState(prev => ({
+            setAnimationState((prev) => ({
               ...prev,
               showOutput: true,
               animationComplete: true,
-              currentStep: 'done' 
+              currentStep: 'done'
             }));
           }, 300);
         }
       }, 50);
     };
 
-    // Start with the command now
     typeCommand();
-    
-    return () => {
-      // Cleanup function if needed
-    };
   }, []);
 
   return (
-    <div className="app">
-      <div className="matrix-bg"></div>
-      
-      <header className="header">
-        <div className="header-content">
-          {/* header left */}
-          <div className="header-left">
-            <button className="burger-menu" onClick={toggleMenu} aria-label="Menu">
-              <span></span>
-              <span></span>
-              <span></span>
-            </button>
+    <div className={`main-content ${isLoaded ? 'loaded' : ''}`}>
+      <div className="hero-section">
+        <div className="terminal">
+          <div className="terminal-header">
+            <div className="terminal-button red"></div>
+            <div className="terminal-button yellow"></div>
+            <div className="terminal-button green"></div>
+            <div className="terminal-title">Terminal</div>
           </div>
-          {/* header middle */}
-          <div className="header-middle">
-            <h1 className="header-title">
-              <span className="tech-text">Journey</span>
-              <span className="code-text">2Code</span>
-            </h1>
-          </div>
-          {/* header right */}
-          <div className="header-right">
-            <button id="loginButton" onClick={handleLogin} className="login-button">
-              <span className="button-text">Login</span>
-              <span className="button-icon">→</span>
-              <span id="cwel"><User size="18" className='icon-login'></User></span>
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Mobile menu */}
-      <div className={`mobile-menu ${isMenuOpen ? 'open' : ''}`}>
-        <ul className="menu-items">
-          <li className="menu-item"><a href="/"><span className="menu-icon"><Home size={18} className="icon-menu"/></span> Home</a></li>
-          <li className="menu-item"><a href="#tutorials"><span className="menu-icon"><Bookmark size={18} className="icon-menu"/></span> Tutorials</a></li>
-          <li className="menu-item"><a href="#resources"><span className="menu-icon"><Wrench size={18} className="icon-menu"/></span> Resources</a></li>
-          <li className="menu-item"><a href="#about"><span className="menu-icon"><Info size={18} className="icon-menu"/></span> About</a></li>
-          <li className="menu-item"><a href="#contact"><span className="menu-icon"><Mail size={18} className="icon-menu"/></span> Contact</a></li>
-        </ul>
-      </div>
-
-      {/* Main content area */}
-      <div className={`main-content ${isLoaded ? 'loaded' : ''}`}>
-        <div className="hero-section">
-          <div className="terminal">
-            <div className="terminal-header">
-              <div className="terminal-button red"></div>
-              <div className="terminal-button yellow"></div>
-              <div className="terminal-button green"></div>
-              <div className="terminal-title">Terminal</div>
+          <div className="terminal-body">
+            <div className="terminal-line">
+              <span className="prompt">$</span>
+              <span className="command">{animationState.command}</span>
+              {animationState.currentStep === 'command' && <span className="cursor"></span>}
             </div>
-            <div className="terminal-body">
-              {/* Command line with prompt - now first */}
+
+            {animationState.command.length === fullCommand.length && (
               <div className="terminal-line">
-                <span className="prompt">$</span> <span className="command">{animationState.command}</span>
-                {animationState.currentStep === 'command' && <span className="cursor"></span>}
+                <h2 className="typewriter">
+                  {animationState.heading}
+                  {animationState.currentStep === 'heading' && <span className="cursor"></span>}
+                </h2>
               </div>
-              
-              {/* Heading with blinking cursor - now second */}
-              {animationState.command.length === fullCommand.length && (
-                <div className="terminal-line">
-                  <h2 className="typewriter">
-                    {animationState.heading}
-                    {animationState.currentStep === 'heading' && <span className="cursor"></span>}
-                  </h2>
-                </div>
-              )}
-              
-              {/* Output command */}
-              {animationState.heading.length === fullText.length && (
-                <div className="terminal-line">
-                  <span className="prompt">$</span> <span className="command">{animationState.output}</span>
-                  {animationState.currentStep === 'output' && <span className="cursor"></span>}
-                </div>
-              )}
-              
-              {/* Output result */}
-              {animationState.showOutput && (
-                <p className="terminal-output">Learn, build, and grow with our coding resources</p>
-              )}
-              
-              {/* Final blinking cursor */}
-              {animationState.currentStep === 'done' && (
-                <div className="terminal-line">
-                  <span className="prompt">$</span> <span className="blink-cursor"></span>
-                </div>
-              )}
-            </div>
-          </div>
-          <button className="cta-button" onClick={handleLogin}>
-            <span className="button-text">Get Started</span>
-            <span className="button-icon">→</span>
-          </button>
-        </div>
+            )}
 
-        <div className="features-section">
-          <div className="feature-card">
-            <div className="feature-icon">
-              <div className="icon-container">
-                <span className="code-icon">&lt;/&gt;</span>
+            {animationState.heading.length === fullText.length && (
+              <div className="terminal-line">
+                <span className="prompt">$</span>
+                <span className="command">{animationState.output}</span>
+                {animationState.currentStep === 'output' && <span className="cursor"></span>}
               </div>
-            </div>
-            <h3>Learn to Code</h3>
-            <p>Access comprehensive tutorials for beginners and advanced developers</p>
-            <div className="card-footer">
-              <a href="#learn" className="learn-more">Explore tutorials</a>
-            </div>
-          </div>
-          
-          <div className="feature-card">
-            <div className="feature-icon">
-              <div className="icon-container">
-                <span className="code-icon">{"{ }"}</span>
+            )}
+
+            {animationState.showOutput && (
+              <p className="terminal-output">Learn, build, and grow with our coding resources</p>
+            )}
+
+            {animationState.currentStep === 'done' && (
+              <div className="terminal-line">
+                <span className="prompt">$</span>
+                <span className="blink-cursor"></span>
               </div>
-            </div>
-            <h3>Build Projects</h3>
-            <p>Apply your knowledge with hands-on coding exercises and projects</p>
-            <div className="card-footer">
-              <a href="#projects" className="learn-more">View projects</a>
-            </div>
-          </div>
-          
-          <div className="feature-card">
-            <div className="feature-icon">
-              <div className="icon-container">
-                <span className="code-icon">^_^</span>
-              </div>
-            </div>
-            <h3>Join Community</h3>
-            <p>Connect with other developers, share knowledge, and grow together</p>
-            <div className="card-footer">
-              <a href="#community" className="learn-more">Join now</a>
-            </div>
+            )}
           </div>
         </div>
       </div>
 
-      <footer className="footer">
-        <div className="footer-content">
-          <div className="footer-logo">
-            <span className="tech-text">J</span><span className="code-text">2C</span>
+      <div className="features-section">
+        <div className="feature-card">
+          <div className="feature-icon">
+            <div className="icon-container">
+              <span className="code-icon">&lt;/&gt;</span>
+            </div>
           </div>
-          <div className="footer-links">
-            <a href="#terms">Terms</a>
-            <a href="#privacy">Privacy</a>
-            <a href="#cookies">Cookies</a>
+          <h3>Learn to Code</h3>
+          <p>Access comprehensive tutorials for beginners and advanced developers</p>
+          <div className="card-footer">
+            <a href="#learn" className="learn-more">Explore tutorials</a>
           </div>
-          <p className="copyright">&copy; 2025 Journey2Code. All rights reserved.</p>
         </div>
-      </footer>
 
-      {/* Login Modal */}
-      <LoginModal 
-        isOpen={isLoginModalOpen} 
-        onClose={closeLoginModal} 
-      />
+        <div className="feature-card">
+          <div className="feature-icon">
+            <div className="icon-container">
+              <span className="code-icon">{'{ }'}</span>
+            </div>
+          </div>
+          <h3>Build Projects</h3>
+          <p>Apply your knowledge with hands-on coding exercises and projects</p>
+          <div className="card-footer">
+            <a href="#projects" className="learn-more">View projects</a>
+          </div>
+        </div>
+
+        <div className="feature-card">
+          <div className="feature-icon">
+            <div className="icon-container">
+              <span className="code-icon">^_^</span>
+            </div>
+          </div>
+          <h3>Join Community</h3>
+          <p>Connect with other developers, share knowledge, and grow together</p>
+          <div className="card-footer">
+            <a href="#community" className="learn-more">Join now</a>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
